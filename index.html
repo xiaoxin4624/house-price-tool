@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>房号底价测算工具</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f7fb; color: #1f2937; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 14px; }
+    .header { margin-bottom: 12px; }
+    .header h1 { margin: 0 0 6px; font-size: 24px; }
+    .header p { margin: 0; color: #6b7280; line-height: 1.5; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 6px 18px rgba(15,23,42,.05); border: 1px solid #e5e7eb; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
+    .field input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 14px; outline: none; }
+    .field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .inline-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inline-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .btn { border: none; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-secondary { background: #e5e7eb; color: #111827; }
+    .full { grid-column: 1 / -1; }
+    .muted { color: #6b7280; font-size: 12px; line-height: 1.5; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+    .topline { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; line-height: 1.5; }
+    .topline span { white-space: nowrap; }
+    .formula-line { margin-top: 8px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e5e7eb; line-height: 1.7; font-size: 13px; word-break: break-word; }
+    .price-final { margin-top: 8px; padding: 10px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; font-size: 15px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; text-align: left; font-size: 12px; vertical-align: top; }
+    th { background: #f9fafb; }
+    .notice { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .inline-3 { grid-template-columns: 1fr; }
+      .wrap { padding: 10px; }
+      .header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>房号底价测算工具</h1>
+      <p>已按你最新上传的 xlsx 底表写入后台数据。前台不展示底表，只用于查询、测算和最多 3 套房对比。</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>测算输入区</h2>
+        <div class="inline-2">
+          <div class="field">
+            <label for="buildingNo">楼栋</label>
+            <input id="buildingNo" type="text" placeholder="例如：8" />
+          </div>
+          <div class="field">
+            <label for="roomNo">房号</label>
+            <input id="roomNo" type="text" placeholder="例如：1703" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="highNetDiscount">高净值及员工折扣</label>
+          <input id="highNetDiscount" type="number" step="0.01" value="0" />
+        </div>
+        <div class="field">
+          <label for="specialDiscount">特惠折扣（仅限老面价）</label>
+          <input id="specialDiscount" type="number" step="0.01" value="0" />
+        </div>
+        <div class="field">
+          <label for="channelDiscount">渠道抵减折扣</label>
+          <input id="channelDiscount" type="number" step="0.01" value="0" />
+        </div>
+        <div class="field">
+          <label for="giftDeduction">赠送抵减折扣（万）</label>
+          <input id="giftDeduction" type="number" step="1" value="0" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="generateBtn">生成底价</button>
+          <button class="btn btn-secondary" id="resetBtn">重置</button>
+        </div>
+        <div class="notice">
+          折扣输入支持两种格式：<br>
+          1）输入 98、88，系统自动换算为 0.98、0.88；<br>
+          2）也可以直接输入 0.98、0.88。<br>
+          开盘折扣：0.98 × 0.98 × 0.98 × 0.98 × 0.97 × 0.99。<br>
+          老面价：开盘折扣 × 0.99。<br>
+          新面价18楼以上：开盘折扣。<br>
+          新面价18楼以下：开盘折扣 × 0.99 × 0.99 × 0.98 × 0.98，其中一个 0.99 作为总监折扣可单独扣除展示。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>后台数据说明</h2>
+        <div class="muted">
+          当前已加载底表房源：<strong>329</strong> 套。<br>
+          当前底表楼栋范围：<strong>6栋、7栋、8栋</strong>。<br><br>
+          你指出的样例已重新核对：<br>
+          8栋1703：新面价 <strong>13094675</strong>，老面价 <strong>12325859</strong>。<br><br>
+          这一区域仅做说明，不展示完整底表价格。
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>结果区</h2>
+        <div id="resultContent" class="muted">点击“生成底价”后，这里显示精简结果。</div>
+      </div>
+
+      <div class="card full">
+        <h2>房号对比区（最多3套）</h2>
+        <div class="inline-3">
+          <div>
+            <div class="inline-2">
+              <div class="field">
+                <label for="compare1Building">楼栋1</label>
+                <input id="compare1Building" type="text" placeholder="例如：8" />
+              </div>
+              <div class="field">
+                <label for="compare1Room">房号1</label>
+                <input id="compare1Room" type="text" placeholder="例如：1703" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="inline-2">
+              <div class="field">
+                <label for="compare2Building">楼栋2</label>
+                <input id="compare2Building" type="text" placeholder="例如：8" />
+              </div>
+              <div class="field">
+                <label for="compare2Room">房号2</label>
+                <input id="compare2Room" type="text" placeholder="例如：1803" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="inline-2">
+              <div class="field">
+                <label for="compare3Building">楼栋3</label>
+                <input id="compare3Building" type="text" placeholder="例如：7" />
+              </div>
+              <div class="field">
+                <label for="compare3Room">房号3</label>
+                <input id="compare3Room" type="text" placeholder="例如：201" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="compareBtn">生成对比</button>
+        </div>
+        <div id="compareContent" class="muted" style="margin-top:8px;">输入房号后可横向比较最多 3 套房的老底价与新底价。</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_TABLE = [{"buildingNo":"7栋","roomNo":"201","newPrice":7056230,"oldPrice":7056230},{"buildingNo":"7栋","roomNo":"202","newPrice":5988687,"oldPrice":5988687},{"buildingNo":"7栋","roomNo":"203","newPrice":5904817,"oldPrice":5904817},{"buildingNo":"7栋","roomNo":"204","newPrice":6880003,"oldPrice":6880003},{"buildingNo":"7栋","roomNo":"301","newPrice":7125645,"oldPrice":7125645},{"buildingNo":"7栋","roomNo":"302","newPrice":6052733,"oldPrice":6052733},{"buildingNo":"7栋","roomNo":"303","newPrice":5968617,"oldPrice":5968617},{"buildingNo":"7栋","roomNo":"304","newPrice":6949391,"oldPrice":6949391},{"buildingNo":"7栋","roomNo":"401","newPrice":7177707,"oldPrice":7177707},{"buildingNo":"7栋","roomNo":"402","newPrice":6099399,"oldPrice":6099399},{"buildingNo":"7栋","roomNo":"403","newPrice":6015113,"oldPrice":6015113},{"buildingNo":"7栋","roomNo":"404","newPrice":7001433,"oldPrice":7001433},{"buildingNo":"7栋","roomNo":"501","newPrice":7273154,"oldPrice":7273154},{"buildingNo":"7栋","roomNo":"502","newPrice":6301620,"oldPrice":6301620},{"buildingNo":"7栋","roomNo":"503","newPrice":6216595,"oldPrice":6216595},{"buildingNo":"7栋","roomNo":"504","newPrice":7096842,"oldPrice":7096842},{"buildingNo":"7栋","roomNo":"601","newPrice":7299185,"oldPrice":7299185},{"buildingNo":"7栋","roomNo":"602","newPrice":6324953,"oldPrice":6324953},{"buildingNo":"7栋","roomNo":"603","newPrice":6239843,"oldPrice":6239843},{"buildingNo":"7栋","roomNo":"604","newPrice":7122863,"oldPrice":7122863},{"buildingNo":"7栋","roomNo":"701","newPrice":7325216,"oldPrice":7325216},{"buildingNo":"7栋","roomNo":"702","newPrice":6348287,"oldPrice":6348287},{"buildingNo":"7栋","roomNo":"703","newPrice":6263091,"oldPrice":6263091},{"buildingNo":"7栋","roomNo":"704","newPrice":7148884,"oldPrice":7148884},{"buildingNo":"7栋","roomNo":"801","newPrice":7351247,"oldPrice":7351247},{"buildingNo":"7栋","roomNo":"802","newPrice":6371620,"oldPrice":6371620},{"buildingNo":"7栋","roomNo":"803","newPrice":6286338,"oldPrice":6286338},{"buildingNo":"7栋","roomNo":"804","newPrice":7174904,"oldPrice":7174904},{"buildingNo":"7栋","roomNo":"901","newPrice":7377278,"oldPrice":7377278},{"buildingNo":"7栋","roomNo":"902","newPrice":6394953,"oldPrice":6394953},{"buildingNo":"7栋","roomNo":"903","newPrice":6309586,"oldPrice":6309586},{"buildingNo":"7栋","roomNo":"904","newPrice":7200925,"oldPrice":7200925},{"buildingNo":"7栋","roomNo":"1001","newPrice":7403308,"oldPrice":7403308},{"buildingNo":"7栋","roomNo":"1002","newPrice":6418286,"oldPrice":6418286},{"buildingNo":"7栋","roomNo":"1003","newPrice":6332834,"oldPrice":6332834},{"buildingNo":"7栋","roomNo":"1004","newPrice":7226946,"oldPrice":7226946},{"buildingNo":"7栋","roomNo":"1101","newPrice":7478089,"oldPrice":7478089},{"buildingNo":"7栋","roomNo":"1102","newPrice":6483117,"oldPrice":6483117},{"buildingNo":"7栋","roomNo":"1103","newPrice":6396802,"oldPrice":6396802},{"buildingNo":"7栋","roomNo":"1104","newPrice":7299945,"oldPrice":7299945},{"buildingNo":"7栋","roomNo":"1201","newPrice":7592029,"oldPrice":7592029},{"buildingNo":"7栋","roomNo":"1202","newPrice":6585249,"oldPrice":6585249},{"buildingNo":"7栋","roomNo":"1203","newPrice":6420285,"oldPrice":6420285},{"buildingNo":"7栋","roomNo":"1204","newPrice":7413841,"oldPrice":7413841},{"buildingNo":"7栋","roomNo":"1301","newPrice":7618323,"oldPrice":7618323},{"buildingNo":"7栋","roomNo":"1302","newPrice":6608818,"oldPrice":6608818},{"buildingNo":"7栋","roomNo":"1303","newPrice":6443768,"oldPrice":6443768},{"buildingNo":"7栋","roomNo":"1304","newPrice":7440124,"oldPrice":7440124},{"buildingNo":"7栋","roomNo":"1401","newPrice":7618323,"oldPrice":7618323},{"buildingNo":"7栋","roomNo":"1402","newPrice":6600962,"oldPrice":6600962},{"buildingNo":"7栋","roomNo":"1403","newPrice":6428113,"oldPrice":6428113},{"buildingNo":"7栋","roomNo":"1404","newPrice":7440124,"oldPrice":7440124},{"buildingNo":"7栋","roomNo":"1601","newPrice":7818145,"oldPrice":7818145},{"buildingNo":"7栋","roomNo":"1602","newPrice":6764205,"oldPrice":6764205},{"buildingNo":"7栋","roomNo":"1603","newPrice":6579802,"oldPrice":6579802},{"buildingNo":"7栋","roomNo":"1604","newPrice":7637298,"oldPrice":7637298},{"buildingNo":"7栋","roomNo":"1701","newPrice":7862860,"oldPrice":7862860},{"buildingNo":"7栋","roomNo":"1702","newPrice":6796255,"oldPrice":6796255},{"buildingNo":"7栋","roomNo":"1703","newPrice":6603752,"oldPrice":6603752},{"buildingNo":"7栋","roomNo":"1704","newPrice":7682002,"oldPrice":7682002},{"buildingNo":"7栋","roomNo":"1801","newPrice":7907576,"oldPrice":7907576},{"buildingNo":"7栋","roomNo":"1802","newPrice":6828304,"oldPrice":6828304},{"buildingNo":"7栋","roomNo":"1803","newPrice":6627701,"oldPrice":6627701},{"buildingNo":"7栋","roomNo":"1804","newPrice":7726706,"oldPrice":7726706},{"buildingNo":"7栋","roomNo":"1901","newPrice":8332177,"oldPrice":8332177},{"buildingNo":"7栋","roomNo":"1902","newPrice":7169533,"oldPrice":7169533},{"buildingNo":"7栋","roomNo":"1903","newPrice":6996058,"oldPrice":6996058},{"buildingNo":"7栋","roomNo":"1904","newPrice":8132112,"oldPrice":8132112},{"buildingNo":"7栋","roomNo":"2001","newPrice":8464144,"oldPrice":8464144},{"buildingNo":"7栋","roomNo":"2002","newPrice":7228650,"oldPrice":7228650},{"buildingNo":"7栋","roomNo":"2003","newPrice":7069684,"oldPrice":7069684},{"buildingNo":"7栋","roomNo":"2004","newPrice":8231061,"oldPrice":8231061},{"buildingNo":"7栋","roomNo":"2101","newPrice":8596111,"oldPrice":8596111},{"buildingNo":"7栋","roomNo":"2102","newPrice":7287767,"oldPrice":7287767},{"buildingNo":"7栋","roomNo":"2103","newPrice":7143311,"oldPrice":7143311},{"buildingNo":"7栋","roomNo":"2104","newPrice":8330011,"oldPrice":8330011},{"buildingNo":"7栋","roomNo":"2201","newPrice":8728078,"oldPrice":8728078},{"buildingNo":"7栋","roomNo":"2202","newPrice":7346884,"oldPrice":7346884},{"buildingNo":"7栋","roomNo":"2203","newPrice":7216937,"oldPrice":7216937},{"buildingNo":"7栋","roomNo":"2204","newPrice":8428960,"oldPrice":8428960},{"buildingNo":"7栋","roomNo":"2301","newPrice":8860045,"oldPrice":8860045},{"buildingNo":"7栋","roomNo":"2302","newPrice":7406001,"oldPrice":7406001},{"buildingNo":"7栋","roomNo":"2303","newPrice":7290563,"oldPrice":7290563},{"buildingNo":"7栋","roomNo":"2304","newPrice":8527910,"oldPrice":8527910},{"buildingNo":"7栋","roomNo":"2401","newPrice":8950772,"oldPrice":8950772},{"buildingNo":"7栋","roomNo":"2402","newPrice":7428170,"oldPrice":7428170},{"buildingNo":"7栋","roomNo":"2403","newPrice":7327376,"oldPrice":7327376},{"buildingNo":"7栋","roomNo":"2404","newPrice":8585630,"oldPrice":8585630},{"buildingNo":"7栋","roomNo":"2501","newPrice":9082739,"oldPrice":9082739},{"buildingNo":"7栋","roomNo":"2502","newPrice":7487287,"oldPrice":7487287},{"buildingNo":"7栋","roomNo":"2503","newPrice":7401002,"oldPrice":7401002},{"buildingNo":"7栋","roomNo":"2504","newPrice":8684580,"oldPrice":8684580},{"buildingNo":"7栋","roomNo":"2601","newPrice":9082739,"oldPrice":9082739},{"buildingNo":"7栋","roomNo":"2602","newPrice":7487287,"oldPrice":7487287},{"buildingNo":"7栋","roomNo":"2603","newPrice":7401002,"oldPrice":7401002},{"buildingNo":"7栋","roomNo":"2604","newPrice":8684580,"oldPrice":8684580},{"buildingNo":"7栋","roomNo":"2701","newPrice":9214706,"oldPrice":9214706},{"buildingNo":"7栋","roomNo":"2702","newPrice":7546405,"oldPrice":7546405},{"buildingNo":"7栋","roomNo":"2703","newPrice":7474628,"oldPrice":7474628},{"buildingNo":"7栋","roomNo":"2704","newPrice":8783529,"oldPrice":8783529},{"buildingNo":"7栋","roomNo":"2801","newPrice":9346673,"oldPrice":9346673},{"buildingNo":"7栋","roomNo":"2802","newPrice":7605522,"oldPrice":7605522},{"buildingNo":"7栋","roomNo":"2803","newPrice":7548255,"oldPrice":7548255},{"buildingNo":"7栋","roomNo":"2804","newPrice":8882479,"oldPrice":8882479},{"buildingNo":"7栋","roomNo":"2901","newPrice":9478640,"oldPrice":9478640},{"buildingNo":"7栋","roomNo":"2902","newPrice":7664639,"oldPrice":7664639},{"buildingNo":"7栋","roomNo":"2903","newPrice":7621881,"oldPrice":7621881},{"buildingNo":"7栋","roomNo":"2904","newPrice":8981428,"oldPrice":8981428},{"buildingNo":"7栋","roomNo":"3001","newPrice":9610607,"oldPrice":9610607},{"buildingNo":"7栋","roomNo":"3002","newPrice":7723756,"oldPrice":7723756},{"buildingNo":"7栋","roomNo":"3003","newPrice":7695507,"oldPrice":7695507},{"buildingNo":"7栋","roomNo":"3004","newPrice":9080378,"oldPrice":9080378},{"buildingNo":"7栋","roomNo":"3201","newPrice":10072387,"oldPrice":10072387},{"buildingNo":"7栋","roomNo":"3202","newPrice":7920973,"oldPrice":7920973},{"buildingNo":"7栋","roomNo":"3203","newPrice":7922406,"oldPrice":7922406},{"buildingNo":"7栋","roomNo":"3204","newPrice":9510303,"oldPrice":9510303},{"buildingNo":"7栋","roomNo":"3301","newPrice":10204352,"oldPrice":10204352},{"buildingNo":"7栋","roomNo":"3302","newPrice":7980018,"oldPrice":7980018},{"buildingNo":"7栋","roomNo":"3303","newPrice":7996088,"oldPrice":7996088},{"buildingNo":"7栋","roomNo":"3304","newPrice":9609265,"oldPrice":9609265},{"buildingNo":"7栋","roomNo":"3401","newPrice":10295079,"oldPrice":10295079},{"buildingNo":"7栋","roomNo":"3402","newPrice":8002160,"oldPrice":8002160},{"buildingNo":"7栋","roomNo":"3403","newPrice":8032929,"oldPrice":8032929},{"buildingNo":"7栋","roomNo":"3404","newPrice":9666992,"oldPrice":9666992},{"buildingNo":"7栋","roomNo":"3501","newPrice":10427044,"oldPrice":10427044},{"buildingNo":"7栋","roomNo":"3502","newPrice":8061205,"oldPrice":8061205},{"buildingNo":"7栋","roomNo":"3503","newPrice":8106611,"oldPrice":8106611},{"buildingNo":"7栋","roomNo":"3504","newPrice":9765954,"oldPrice":9765954},{"buildingNo":"7栋","roomNo":"3601","newPrice":10559010,"oldPrice":10559010},{"buildingNo":"7栋","roomNo":"3602","newPrice":8120250,"oldPrice":8120250},{"buildingNo":"7栋","roomNo":"3603","newPrice":8180293,"oldPrice":8180293},{"buildingNo":"7栋","roomNo":"3604","newPrice":9864915,"oldPrice":9864915},{"buildingNo":"7栋","roomNo":"3701","newPrice":10690976,"oldPrice":10690976},{"buildingNo":"7栋","roomNo":"3702","newPrice":8179294,"oldPrice":8179294},{"buildingNo":"7栋","roomNo":"3703","newPrice":8180293,"oldPrice":8180293},{"buildingNo":"7栋","roomNo":"3704","newPrice":9864915,"oldPrice":9864915},{"buildingNo":"7栋","roomNo":"3801","newPrice":10822941,"oldPrice":10822941},{"buildingNo":"7栋","roomNo":"3802","newPrice":8238339,"oldPrice":8238339},{"buildingNo":"7栋","roomNo":"3803","newPrice":8253976,"oldPrice":8253976},{"buildingNo":"7栋","roomNo":"3804","newPrice":9963877,"oldPrice":9963877},{"buildingNo":"7栋","roomNo":"3901","newPrice":10954907,"oldPrice":10954907},{"buildingNo":"7栋","roomNo":"3902","newPrice":8297384,"oldPrice":8297384},{"buildingNo":"7栋","roomNo":"3903","newPrice":8327658,"oldPrice":8327658},{"buildingNo":"7栋","roomNo":"3904","newPrice":10062838,"oldPrice":10062838},{"buildingNo":"7栋","roomNo":"4001","newPrice":11086873,"oldPrice":11086873},{"buildingNo":"7栋","roomNo":"4002","newPrice":8356429,"oldPrice":8356429},{"buildingNo":"7栋","roomNo":"4003","newPrice":8401340,"oldPrice":8401340},{"buildingNo":"7栋","roomNo":"4004","newPrice":10161799,"oldPrice":10161799},{"buildingNo":"7栋","roomNo":"4101","newPrice":11218838,"oldPrice":11218838},{"buildingNo":"7栋","roomNo":"4102","newPrice":8415474,"oldPrice":8415474},{"buildingNo":"7栋","roomNo":"4103","newPrice":8475022,"oldPrice":8475022},{"buildingNo":"7栋","roomNo":"4104","newPrice":10260761,"oldPrice":10260761},{"buildingNo":"7栋","roomNo":"4201","newPrice":11350804,"oldPrice":11350804},{"buildingNo":"7栋","roomNo":"4202","newPrice":8474519,"oldPrice":8474519},{"buildingNo":"7栋","roomNo":"4203","newPrice":8548704,"oldPrice":8548704},{"buildingNo":"7栋","roomNo":"4204","newPrice":10359722,"oldPrice":10359722},{"buildingNo":"7栋","roomNo":"4301","newPrice":11482769,"oldPrice":11482769},{"buildingNo":"7栋","roomNo":"4302","newPrice":8533564,"oldPrice":8533564},{"buildingNo":"7栋","roomNo":"4303","newPrice":8622386,"oldPrice":8622386},{"buildingNo":"7栋","roomNo":"4304","newPrice":10458684,"oldPrice":10458684},{"buildingNo":"7栋","roomNo":"4401","newPrice":11573496,"oldPrice":11573496},{"buildingNo":"7栋","roomNo":"4402","newPrice":8555706,"oldPrice":8555706},{"buildingNo":"7栋","roomNo":"4403","newPrice":8659228,"oldPrice":8659228},{"buildingNo":"7栋","roomNo":"4404","newPrice":10516411,"oldPrice":10516411},{"buildingNo":"7栋","roomNo":"4501","newPrice":11705461,"oldPrice":11705461},{"buildingNo":"7栋","roomNo":"4502","newPrice":8614751,"oldPrice":8614751},{"buildingNo":"7栋","roomNo":"4503","newPrice":8732910,"oldPrice":8732910},{"buildingNo":"7栋","roomNo":"4504","newPrice":10615373,"oldPrice":10615373},{"buildingNo":"7栋","roomNo":"4601","newPrice":11837427,"oldPrice":11837427},{"buildingNo":"7栋","roomNo":"4602","newPrice":8673795,"oldPrice":8673795},{"buildingNo":"7栋","roomNo":"4603","newPrice":8806592,"oldPrice":8806592},{"buildingNo":"7栋","roomNo":"4604","newPrice":10714334,"oldPrice":10714334},{"buildingNo":"7栋","roomNo":"4701","newPrice":11672470,"oldPrice":11672470},{"buildingNo":"7栋","roomNo":"4702","newPrice":8526183,"oldPrice":8526183},{"buildingNo":"7栋","roomNo":"4703","newPrice":8659228,"oldPrice":8659228},{"buildingNo":"7栋","roomNo":"4704","newPrice":10549398,"oldPrice":10549398},{"buildingNo":"6栋","roomNo":"201","newPrice":8033224,"oldPrice":7561576},{"buildingNo":"6栋","roomNo":"202","newPrice":7082938,"oldPrice":6667084},{"buildingNo":"6栋","roomNo":"203","newPrice":7732215,"oldPrice":7278240},{"buildingNo":"6栋","roomNo":"204","newPrice":8324370,"oldPrice":7835629},{"buildingNo":"6栋","roomNo":"301","newPrice":8085439,"oldPrice":7610726},{"buildingNo":"6栋","roomNo":"302","newPrice":7117256,"oldPrice":6699387},{"buildingNo":"6栋","roomNo":"303","newPrice":7778843,"oldPrice":7322131},{"buildingNo":"6栋","roomNo":"304","newPrice":8376405,"oldPrice":7884609},{"buildingNo":"6栋","roomNo":"401","newPrice":7643397,"oldPrice":7643397},{"buildingNo":"6栋","roomNo":"402","newPrice":7136000,"oldPrice":6717030},{"buildingNo":"6栋","roomNo":"403","newPrice":7809837,"oldPrice":7351305},{"buildingNo":"6栋","roomNo":"404","newPrice":8411095,"oldPrice":7917262},{"buildingNo":"6栋","roomNo":"501","newPrice":6486256,"oldPrice":7708882},{"buildingNo":"6栋","roomNo":"503","newPrice":6234595,"oldPrice":7409783},{"buildingNo":"6栋","roomNo":"504","newPrice":6716657,"oldPrice":7982713},{"buildingNo":"6栋","roomNo":"603","newPrice":6302154,"oldPrice":7490077},{"buildingNo":"6栋","roomNo":"604","newPrice":6737326,"oldPrice":8007276},{"buildingNo":"6栋","roomNo":"704","newPrice":6757869,"oldPrice":8031693},{"buildingNo":"6栋","roomNo":"804","newPrice":6778536,"oldPrice":8056255},{"buildingNo":"6栋","roomNo":"901","newPrice":6568723,"oldPrice":7806893},{"buildingNo":"6栋","roomNo":"904","newPrice":6799203,"oldPrice":8080818},{"buildingNo":"6栋","roomNo":"1004","newPrice":6819748,"oldPrice":8105235},{"buildingNo":"6栋","roomNo":"1101","newPrice":6610078,"oldPrice":7856043},{"buildingNo":"6栋","roomNo":"1304","newPrice":6881749,"oldPrice":8178922},{"buildingNo":"6栋","roomNo":"1501","newPrice":7405136,"oldPrice":7920868},{"buildingNo":"6栋","roomNo":"1504","newPrice":7068876,"oldPrice":8196413},{"buildingNo":"6栋","roomNo":"1801","newPrice":6845309,"oldPrice":7937185},{"buildingNo":"6栋","roomNo":"1804","newPrice":7082945,"oldPrice":8212726},{"buildingNo":"6栋","roomNo":"2301","newPrice":8174144,"oldPrice":8174144},{"buildingNo":"6栋","roomNo":"2501","newPrice":8198548,"oldPrice":8198548},{"buildingNo":"6栋","roomNo":"3001","newPrice":8389164,"oldPrice":8389164},{"buildingNo":"6栋","roomNo":"3101","newPrice":8421953,"oldPrice":8421953},{"buildingNo":"6栋","roomNo":"3201","newPrice":8454598,"oldPrice":8454598},{"buildingNo":"6栋","roomNo":"3204","newPrice":8730096,"oldPrice":8730096},{"buildingNo":"6栋","roomNo":"3304","newPrice":8762732,"oldPrice":8762732},{"buildingNo":"6栋","roomNo":"3401","newPrice":8454598,"oldPrice":8454598},{"buildingNo":"6栋","roomNo":"3404","newPrice":8730096,"oldPrice":8730096},{"buildingNo":"6栋","roomNo":"3501","newPrice":8519888,"oldPrice":8519888},{"buildingNo":"6栋","roomNo":"3504","newPrice":8795513,"oldPrice":8795513},{"buildingNo":"6栋","roomNo":"3601","newPrice":8552677,"oldPrice":8552677},{"buildingNo":"6栋","roomNo":"3603","newPrice":8227232,"oldPrice":8227232},{"buildingNo":"6栋","roomNo":"3604","newPrice":8828149,"oldPrice":8828149},{"buildingNo":"6栋","roomNo":"3701","newPrice":8585322,"oldPrice":8585322},{"buildingNo":"6栋","roomNo":"3704","newPrice":8860786,"oldPrice":8860786},{"buildingNo":"6栋","roomNo":"3801","newPrice":8617967,"oldPrice":8617967},{"buildingNo":"6栋","roomNo":"3802","newPrice":7392567,"oldPrice":7392567},{"buildingNo":"6栋","roomNo":"3803","newPrice":8285708,"oldPrice":8285708},{"buildingNo":"6栋","roomNo":"3804","newPrice":8893567,"oldPrice":8893567},{"buildingNo":"6栋","roomNo":"3901","newPrice":8650612,"oldPrice":8650612},{"buildingNo":"6栋","roomNo":"3903","newPrice":8314881,"oldPrice":8314881},{"buildingNo":"6栋","roomNo":"3904","newPrice":8926203,"oldPrice":8926203},{"buildingNo":"6栋","roomNo":"4001","newPrice":8683401,"oldPrice":8683401},{"buildingNo":"6栋","roomNo":"4003","newPrice":8344054,"oldPrice":8344054},{"buildingNo":"6栋","roomNo":"4004","newPrice":8958839,"oldPrice":8958839},{"buildingNo":"6栋","roomNo":"4101","newPrice":8716046,"oldPrice":8716046},{"buildingNo":"6栋","roomNo":"4103","newPrice":8373228,"oldPrice":8373228},{"buildingNo":"6栋","roomNo":"4104","newPrice":8991476,"oldPrice":8991476},{"buildingNo":"6栋","roomNo":"4201","newPrice":8837063,"oldPrice":8748691},{"buildingNo":"6栋","roomNo":"4202","newPrice":7463183,"oldPrice":7463183},{"buildingNo":"6栋","roomNo":"4203","newPrice":8402530,"oldPrice":8402530},{"buildingNo":"6栋","roomNo":"4204","newPrice":9024257,"oldPrice":9024257},{"buildingNo":"6栋","roomNo":"4301","newPrice":8838826,"oldPrice":8838826},{"buildingNo":"6栋","roomNo":"4302","newPrice":7445497,"oldPrice":7445497},{"buildingNo":"6栋","roomNo":"4303","newPrice":8384974,"oldPrice":8384974},{"buildingNo":"6栋","roomNo":"4304","newPrice":8999707,"oldPrice":8999707},{"buildingNo":"8栋","roomNo":"201","newPrice":11823547,"oldPrice":11241780},{"buildingNo":"8栋","roomNo":"202","newPrice":7818984,"oldPrice":7359915},{"buildingNo":"8栋","roomNo":"203","newPrice":11274388,"oldPrice":10612446},{"buildingNo":"8栋","roomNo":"301","newPrice":12022079,"oldPrice":11430543},{"buildingNo":"8栋","roomNo":"302","newPrice":7960863,"oldPrice":7493464},{"buildingNo":"8栋","roomNo":"303","newPrice":11474925,"oldPrice":10801209},{"buildingNo":"8栋","roomNo":"401","newPrice":11978003,"oldPrice":11388637},{"buildingNo":"8栋","roomNo":"402","newPrice":7929366,"oldPrice":7463816},{"buildingNo":"8栋","roomNo":"403","newPrice":11430405,"oldPrice":10759303},{"buildingNo":"8栋","roomNo":"501","newPrice":12198767,"oldPrice":11598538},{"buildingNo":"8栋","roomNo":"503","newPrice":9921704,"oldPrice":10969204},{"buildingNo":"8栋","roomNo":"601","newPrice":12375261,"oldPrice":11766348},{"buildingNo":"8栋","roomNo":"602","newPrice":6098245,"oldPrice":7730915},{"buildingNo":"8栋","roomNo":"603","newPrice":10073489,"oldPrice":11137014},{"buildingNo":"8栋","roomNo":"701","newPrice":12551756,"oldPrice":11934158},{"buildingNo":"8栋","roomNo":"702","newPrice":6191897,"oldPrice":7849640},{"buildingNo":"8栋","roomNo":"703","newPrice":10225274,"oldPrice":11304824},{"buildingNo":"8栋","roomNo":"801","newPrice":12728250,"oldPrice":12101968},{"buildingNo":"8栋","roomNo":"802","newPrice":6285549,"oldPrice":7968365},{"buildingNo":"8栋","roomNo":"803","newPrice":10377059,"oldPrice":11472634},{"buildingNo":"8栋","roomNo":"901","newPrice":12904745,"oldPrice":12269778},{"buildingNo":"8栋","roomNo":"902","newPrice":6379201,"oldPrice":8087090},{"buildingNo":"8栋","roomNo":"903","newPrice":10528844,"oldPrice":11640444},{"buildingNo":"8栋","roomNo":"1001","newPrice":13081237,"oldPrice":12437587},{"buildingNo":"8栋","roomNo":"1002","newPrice":6472956,"oldPrice":8205947},{"buildingNo":"8栋","roomNo":"1003","newPrice":10680630,"oldPrice":11808254},{"buildingNo":"8栋","roomNo":"1101","newPrice":13125313,"oldPrice":12479494},{"buildingNo":"8栋","roomNo":"1102","newPrice":6496343,"oldPrice":8235595},{"buildingNo":"8栋","roomNo":"1201","newPrice":13169582,"oldPrice":12521585},{"buildingNo":"8栋","roomNo":"1202","newPrice":6519731,"oldPrice":8265244},{"buildingNo":"8栋","roomNo":"1203","newPrice":12633824,"oldPrice":11892066},{"buildingNo":"8栋","roomNo":"1301","newPrice":13213656,"oldPrice":12563491},{"buildingNo":"8栋","roomNo":"1302","newPrice":6543118,"oldPrice":8294892},{"buildingNo":"8栋","roomNo":"1401","newPrice":13169582,"oldPrice":12521585},{"buildingNo":"8栋","roomNo":"1402","newPrice":6519731,"oldPrice":8265244},{"buildingNo":"8栋","roomNo":"1403","newPrice":12633824,"oldPrice":11892066},{"buildingNo":"8栋","roomNo":"1601","newPrice":13559190,"oldPrice":12892022},{"buildingNo":"8栋","roomNo":"1602","newPrice":6901052,"oldPrice":8521417},{"buildingNo":"8栋","roomNo":"1603","newPrice":13027932,"oldPrice":12263035},{"buildingNo":"8栋","roomNo":"1702","newPrice":6937021,"oldPrice":8565832},{"buildingNo":"8栋","roomNo":"1703","newPrice":13094675,"oldPrice":12325859},{"buildingNo":"8栋","roomNo":"1801","newPrice":13581216,"oldPrice":12912964},{"buildingNo":"8栋","roomNo":"1802","newPrice":6913041,"oldPrice":8536222},{"buildingNo":"8栋","roomNo":"1803","newPrice":13050179,"oldPrice":12283976},{"buildingNo":"8栋","roomNo":"1903","newPrice":12388869,"oldPrice":12388869},{"buildingNo":"8栋","roomNo":"2002","newPrice":8654794,"oldPrice":8654794},{"buildingNo":"8栋","roomNo":"2102","newPrice":8699209,"oldPrice":8699209},{"buildingNo":"8栋","roomNo":"2201","newPrice":13206516,"oldPrice":13206516},{"buildingNo":"8栋","roomNo":"2302","newPrice":8788170,"oldPrice":8788170},{"buildingNo":"8栋","roomNo":"2401","newPrice":13227458,"oldPrice":13227458},{"buildingNo":"8栋","roomNo":"2402","newPrice":8758560,"oldPrice":8758560},{"buildingNo":"8栋","roomNo":"2403","newPrice":12598470,"oldPrice":12598470},{"buildingNo":"8栋","roomNo":"2502","newPrice":8832585,"oldPrice":8832585},{"buildingNo":"8栋","roomNo":"2602","newPrice":8877131,"oldPrice":8877131},{"buildingNo":"8栋","roomNo":"2701","newPrice":13458185,"oldPrice":13458185},{"buildingNo":"8栋","roomNo":"2801","newPrice":13521010,"oldPrice":13521010},{"buildingNo":"8栋","roomNo":"2802","newPrice":8966093,"oldPrice":8966093},{"buildingNo":"8栋","roomNo":"2902","newPrice":9010508,"oldPrice":9010508},{"buildingNo":"8栋","roomNo":"2903","newPrice":12954847,"oldPrice":12954847},{"buildingNo":"8栋","roomNo":"3102","newPrice":9107991,"oldPrice":9107991},{"buildingNo":"8栋","roomNo":"3103","newPrice":13084359,"oldPrice":13084359},{"buildingNo":"8栋","roomNo":"3202","newPrice":9197035,"oldPrice":9197035},{"buildingNo":"8栋","roomNo":"3301","newPrice":13956223,"oldPrice":13956223},{"buildingNo":"8栋","roomNo":"3302","newPrice":9285949,"oldPrice":9285949},{"buildingNo":"8栋","roomNo":"3402","newPrice":9256311,"oldPrice":9256311},{"buildingNo":"8栋","roomNo":"3403","newPrice":13294019,"oldPrice":13294019},{"buildingNo":"8栋","roomNo":"3502","newPrice":9374994,"oldPrice":9374994},{"buildingNo":"8栋","roomNo":"3503","newPrice":13461969,"oldPrice":13461969},{"buildingNo":"8栋","roomNo":"3602","newPrice":9464038,"oldPrice":9464038},{"buildingNo":"8栋","roomNo":"3603","newPrice":13587653,"oldPrice":13587653},{"buildingNo":"8栋","roomNo":"3702","newPrice":9553083,"oldPrice":9553083},{"buildingNo":"8栋","roomNo":"3703","newPrice":13713523,"oldPrice":13713523},{"buildingNo":"8栋","roomNo":"3802","newPrice":9642127,"oldPrice":9642127},{"buildingNo":"8栋","roomNo":"3803","newPrice":13839393,"oldPrice":13839393},{"buildingNo":"8栋","roomNo":"3902","newPrice":9731041,"oldPrice":9731041},{"buildingNo":"8栋","roomNo":"4002","newPrice":9820085,"oldPrice":9820085},{"buildingNo":"8栋","roomNo":"4003","newPrice":14091133,"oldPrice":14091133},{"buildingNo":"8栋","roomNo":"4102","newPrice":9909130,"oldPrice":9909130},{"buildingNo":"8栋","roomNo":"4103","newPrice":14216818,"oldPrice":14216818},{"buildingNo":"8栋","roomNo":"4202","newPrice":9998175,"oldPrice":9998175},{"buildingNo":"8栋","roomNo":"4203","newPrice":14342688,"oldPrice":14342688},{"buildingNo":"8栋","roomNo":"4302","newPrice":10087219,"oldPrice":10087219},{"buildingNo":"8栋","roomNo":"4401","newPrice":15046081,"oldPrice":15046081},{"buildingNo":"8栋","roomNo":"4402","newPrice":10057450,"oldPrice":10057450},{"buildingNo":"8栋","roomNo":"4403","newPrice":14426663,"oldPrice":14426663},{"buildingNo":"8栋","roomNo":"4501","newPrice":15004213,"oldPrice":15004213},{"buildingNo":"8栋","roomNo":"4502","newPrice":10027812,"oldPrice":10027812},{"buildingNo":"8栋","roomNo":"4503","newPrice":14384768,"oldPrice":14384768}];
+
+    const OPENING_DISCOUNT = [0.98, 0.98, 0.98, 0.98, 0.97, 0.99];
+    const OLD_EXTRA = [0.99];
+    const NEW_BELOW18_EXTRA = [0.99, 0.99, 0.98, 0.98];
+
+    const buildingNoEl = document.getElementById('buildingNo');
+    const roomNoEl = document.getElementById('roomNo');
+    const highNetDiscountEl = document.getElementById('highNetDiscount');
+    const specialDiscountEl = document.getElementById('specialDiscount');
+    const channelDiscountEl = document.getElementById('channelDiscount');
+    const giftDeductionEl = document.getElementById('giftDeduction');
+
+    const compare1BuildingEl = document.getElementById('compare1Building');
+    const compare1RoomEl = document.getElementById('compare1Room');
+    const compare2BuildingEl = document.getElementById('compare2Building');
+    const compare2RoomEl = document.getElementById('compare2Room');
+    const compare3BuildingEl = document.getElementById('compare3Building');
+    const compare3RoomEl = document.getElementById('compare3Room');
+
+    const generateBtn = document.getElementById('generateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const compareBtn = document.getElementById('compareBtn');
+    const resultContent = document.getElementById('resultContent');
+    const compareContent = document.getElementById('compareContent');
+
+    function fmtWan(n) {
+      return (Number(n) / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    }
+
+    function product(arr) {
+      return arr.reduce((acc, item) => acc * item, 1);
+    }
+
+    function normalizeBuildingNo(value) {
+      const raw = String(value).trim();
+      if (!raw) return '';
+      return raw.endsWith('栋') ? raw : `${raw}栋`;
+    }
+
+    function findRoom(buildingNo, roomNo) {
+      return BASE_TABLE.find(item =>
+        item.buildingNo.trim().toLowerCase() === buildingNo.trim().toLowerCase() &&
+        item.roomNo.trim().toLowerCase() === String(roomNo).trim().toLowerCase()
+      );
+    }
+
+    function extractFloor(roomNo) {
+      const value = String(roomNo).trim();
+      if (!value) return null;
+      if (value.length >= 4) return Number(value.slice(0, 2));
+      if (value.length === 3) return Number(value.slice(0, 1));
+      if (value.length === 2) return Number(value.slice(0, 1));
+      return null;
+    }
+
+    function normalizeDiscountInput(value) {
+      const num = Number(value);
+      if (Number.isNaN(num) || num === 0) return 1;
+      if (num >= 1) return num / 100;
+      return num;
+    }
+
+    function rawDiscountExists(value) {
+      const num = Number(value);
+      return !(Number.isNaN(num) || num === 0);
+    }
+
+    function buildFixedLabel(arr, openingCount) {
+      const opening = arr.slice(0, openingCount).join(' × ') + '（开盘折扣）';
+      const rest = arr.slice(openingCount);
+      if (!rest.length) return opening;
+      return `${opening} × ${rest.join(' × ')}`;
+    }
+
+    function calculatePrice(facePrice, fixedArr, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan, includeSpecial) {
+      let result = facePrice * product(fixedArr);
+      result *= normalizeDiscountInput(highNetDiscountRaw);
+      if (includeSpecial) result *= normalizeDiscountInput(specialDiscountRaw);
+      result *= normalizeDiscountInput(channelDiscountRaw);
+      result -= Number(giftDeductionWan || 0) * 10000;
+      return result;
+    }
+
+    function formulaText(label, facePrice, fixedArr, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan, includeSpecial, openingCount) {
+      const parts = [`${label}${fmtWan(facePrice)}万`, buildFixedLabel(fixedArr, openingCount)];
+      if (rawDiscountExists(highNetDiscountRaw)) parts.push(`${normalizeDiscountInput(highNetDiscountRaw).toFixed(2)}（高净值及员工折扣）`);
+      if (includeSpecial && rawDiscountExists(specialDiscountRaw)) parts.push(`${normalizeDiscountInput(specialDiscountRaw).toFixed(2)}（特惠折扣，仅限老面价）`);
+      if (rawDiscountExists(channelDiscountRaw)) parts.push(`${normalizeDiscountInput(channelDiscountRaw).toFixed(2)}（渠道抵减折扣）`);
+      let text = parts.join(' × ');
+      if (Number(giftDeductionWan) !== 0) text += ` - ${giftDeductionWan}万（赠送抵减折扣）`;
+      return text;
+    }
+
+    function buildCompactCard(label, formula, price) {
+      return `<div class="card" style="margin-top:10px;"><div class="pill">${label}</div><div class="formula-line">${formula} = ${fmtWan(price)}万</div><div class="price-final">${label}：${fmtWan(price)} 万</div></div>`;
+    }
+
+    function getQuoteData(roomData, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan) {
+      const floor = extractFloor(roomData.roomNo);
+      const isAbove18 = floor !== null && floor > 18;
+      const oldFixedArr = [...OPENING_DISCOUNT, ...OLD_EXTRA];
+      const newFixedArrFull = isAbove18 ? [...OPENING_DISCOUNT] : [...OPENING_DISCOUNT, ...NEW_BELOW18_EXTRA];
+      const newFixedArrNoDirector = isAbove18 ? [...OPENING_DISCOUNT] : [...OPENING_DISCOUNT, 0.99, 0.98, 0.98];
+
+      const oldPrice = calculatePrice(roomData.oldPrice, oldFixedArr, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan, true);
+      const newPriceFull = calculatePrice(roomData.newPrice, newFixedArrFull, highNetDiscountRaw, 0, channelDiscountRaw, giftDeductionWan, false);
+      const newPriceNoDirector = calculatePrice(roomData.newPrice, newFixedArrNoDirector, highNetDiscountRaw, 0, channelDiscountRaw, giftDeductionWan, false);
+
+      const oldFormula = formulaText('老底价', roomData.oldPrice, oldFixedArr, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan, true, OPENING_DISCOUNT.length);
+      const newFormulaFull = formulaText('新底价', roomData.newPrice, newFixedArrFull, highNetDiscountRaw, 0, channelDiscountRaw, giftDeductionWan, false, OPENING_DISCOUNT.length);
+      const newFormulaNoDirector = formulaText('新底价', roomData.newPrice, newFixedArrNoDirector, highNetDiscountRaw, 0, channelDiscountRaw, giftDeductionWan, false, OPENING_DISCOUNT.length);
+
+      return { floor, isAbove18, oldPrice, newPriceFull, newPriceNoDirector, oldFormula, newFormulaFull, newFormulaNoDirector };
+    }
+
+    function generate() {
+      const buildingNo = normalizeBuildingNo(buildingNoEl.value);
+      const roomNo = String(roomNoEl.value).trim();
+      const highNetDiscountRaw = Number(highNetDiscountEl.value);
+      const specialDiscountRaw = Number(specialDiscountEl.value);
+      const channelDiscountRaw = Number(channelDiscountEl.value);
+      const giftDeductionWan = Number(giftDeductionEl.value);
+
+      if (!buildingNo || !roomNo) {
+        resultContent.innerHTML = '<p class="muted">请输入楼栋和房号后再生成。</p>';
+        return;
+      }
+      if ([highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan].some(v => Number.isNaN(v))) {
+        resultContent.innerHTML = '<p class="muted">折扣输入有误，请检查。</p>';
+        return;
+      }
+
+      const roomData = findRoom(buildingNo, roomNo);
+      if (!roomData) {
+        resultContent.innerHTML = `<p class="muted">未找到 ${buildingNo}${roomNo} 对应数据。</p>`;
+        return;
+      }
+
+      const q = getQuoteData(roomData, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan);
+      const skipOldPrice = roomData.buildingNo === '7栋';
+      const topLine = `<div class="card"><div class="topline"><span>楼栋：${roomData.buildingNo}</span><span>房号：${roomData.roomNo}</span><span>楼层：${q.floor ?? '-'}</span>${skipOldPrice ? '' : `<span>老面价：${fmtWan(roomData.oldPrice)}万</span>`}<span>新面价：${fmtWan(roomData.newPrice)}万</span></div></div>`;
+
+      resultContent.innerHTML = topLine +
+        (skipOldPrice ? '' : buildCompactCard('老底价', q.oldFormula, q.oldPrice)) +
+        buildCompactCard('新底价（全部释放完毕）', q.newFormulaFull, q.newPriceFull) +
+        (!q.isAbove18 ? buildCompactCard('新底价（扣除总监折扣）', q.newFormulaNoDirector, q.newPriceNoDirector) : '');
+    }
+
+    function buildCompareItem(buildingRaw, roomRaw) {
+      const buildingNo = normalizeBuildingNo(buildingRaw);
+      const roomNo = String(roomRaw).trim();
+      if (!buildingNo || !roomNo) return null;
+      return { buildingNo, roomNo };
+    }
+
+    function generateCompare() {
+      const inputs = [
+        buildCompareItem(compare1BuildingEl.value, compare1RoomEl.value),
+        buildCompareItem(compare2BuildingEl.value, compare2RoomEl.value),
+        buildCompareItem(compare3BuildingEl.value, compare3RoomEl.value)
+      ].filter(Boolean).slice(0, 3);
+
+      const highNetDiscountRaw = Number(highNetDiscountEl.value);
+      const specialDiscountRaw = Number(specialDiscountEl.value);
+      const channelDiscountRaw = Number(channelDiscountEl.value);
+      const giftDeductionWan = Number(giftDeductionEl.value);
+
+      if (!inputs.length) {
+        compareContent.innerHTML = '请输入至少 1 套房的楼栋和房号。';
+        return;
+      }
+
+      const rows = inputs.map(item => {
+        const roomData = findRoom(item.buildingNo, item.roomNo);
+        if (!roomData) {
+          return `<tr><td>${item.buildingNo}</td><td>${item.roomNo}</td><td colspan="4">未找到对应数据</td></tr>`;
+        }
+        const q = getQuoteData(roomData, highNetDiscountRaw, specialDiscountRaw, channelDiscountRaw, giftDeductionWan);
+        const skipOldPrice = roomData.buildingNo === '7栋';
+        return `<tr>
+          <td>${roomData.buildingNo}</td>
+          <td>${roomData.roomNo}</td>
+          <td>${skipOldPrice ? '-' : fmtWan(q.oldPrice) + '万'}</td>
+          <td>${fmtWan(q.newPriceFull)}万</td>
+          <td>${q.isAbove18 ? '-' : fmtWan(q.newPriceNoDirector) + '万'}</td>
+          <td>${q.floor ?? '-'}</td>
+        </tr>`;
+      }).join('');
+
+      compareContent.innerHTML = `<table>
+        <thead>
+          <tr><th>楼栋</th><th>房号</th><th>老底价</th><th>新底价</th><th>新底价(扣总监)</th><th>楼层</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function resetAll() {
+      buildingNoEl.value = '';
+      roomNoEl.value = '';
+      highNetDiscountEl.value = '0';
+      specialDiscountEl.value = '0';
+      channelDiscountEl.value = '0';
+      giftDeductionEl.value = '0';
+      compare1BuildingEl.value = '';
+      compare1RoomEl.value = '';
+      compare2BuildingEl.value = '';
+      compare2RoomEl.value = '';
+      compare3BuildingEl.value = '';
+      compare3RoomEl.value = '';
+      resultContent.innerHTML = '<p class="muted">点击“生成底价”后，这里显示精简结果。</p>';
+      compareContent.innerHTML = '输入房号后可横向比较最多 3 套房的老底价与新底价。';
+    }
+
+    generateBtn.addEventListener('click', generate);
+    resetBtn.addEventListener('click', resetAll);
+    compareBtn.addEventListener('click', generateCompare);
+    resetAll();
+  </script>
+</body>
+</html>
